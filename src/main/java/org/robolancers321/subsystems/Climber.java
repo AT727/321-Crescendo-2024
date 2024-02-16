@@ -8,9 +8,9 @@ import com.revrobotics.CANSparkMax;
 import com.revrobotics.RelativeEncoder;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.PowerDistribution;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Command.InterruptionBehavior;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import org.robolancers321.util.TunableConstant;
 
@@ -39,7 +39,7 @@ public class Climber extends SubsystemBase {
   private static final int kRightLimitSwitchPort = 1;
   private static final boolean kRightClimberInverted = false;
 
-  private static final int kCurrentLimit = 40;
+  private static final int kCurrentLimit = 60;
   private static final float kMaxSoftLimit = 1;
   private static final float kMinSoftLimit = 0;
   private static final double kMetersPerRot = 1;
@@ -70,6 +70,8 @@ public class Climber extends SubsystemBase {
   private final DigitalInput leftLimitSwitch;
   private final DigitalInput rightLimitSwitch;
 
+  private final PowerDistribution solenoids;
+
   private Climber() {
     this.leftClimberMotor = new CANSparkMax(kLeftClimberPort, MotorType.kBrushless);
     this.rightClimberMotor = new CANSparkMax(kRightClimberPort, MotorType.kBrushless);
@@ -82,6 +84,8 @@ public class Climber extends SubsystemBase {
 
     this.leftLimitSwitch = new DigitalInput(kLeftLimitSwitchPort);
     this.rightLimitSwitch = new DigitalInput(kRightLimitSwitchPort);
+
+    this.solenoids = new PowerDistribution();
 
     configMotors();
     configEncoders();
@@ -96,6 +100,8 @@ public class Climber extends SubsystemBase {
     leftClimberMotor.enableVoltageCompensation(12.0);
     leftClimberMotor.setSoftLimit(SoftLimitDirection.kForward, kMaxSoftLimit);
     leftClimberMotor.setSoftLimit(SoftLimitDirection.kReverse, kMinSoftLimit);
+    leftClimberMotor.enableSoftLimit(SoftLimitDirection.kForward, true);
+    leftClimberMotor.enableSoftLimit(SoftLimitDirection.kReverse, true);
 
     rightClimberMotor.setInverted(kRightClimberInverted);
     rightClimberMotor.setIdleMode(IdleMode.kBrake);
@@ -103,6 +109,8 @@ public class Climber extends SubsystemBase {
     rightClimberMotor.enableVoltageCompensation(12.0);
     rightClimberMotor.setSoftLimit(SoftLimitDirection.kForward, kMaxSoftLimit);
     rightClimberMotor.setSoftLimit(SoftLimitDirection.kReverse, kMinSoftLimit);
+    rightClimberMotor.enableSoftLimit(SoftLimitDirection.kForward, true);
+    rightClimberMotor.enableSoftLimit(SoftLimitDirection.kReverse, true);
 
     // leftClimberMotor.burnFlash();
     // rightClimberMotor.burnFlash();
@@ -196,63 +204,83 @@ public class Climber extends SubsystemBase {
     // tuneClimbers();
   }
 
+  public Command unlockClimb() {
+    return runOnce(
+        () -> {
+          if (!solenoids.getSwitchableChannel()) {
+            solenoids.setSwitchableChannel(true);
+          }
+        });
+  }
+
   public Command leftUp(double setpoint) {
     setLeftClimberSetpoint(setpoint);
 
-    return run(() -> setLeftPower(leftClimberPID.calculate(getLeftClimberPosition())))
-        .until(leftClimberPID::atSetpoint);
+    return unlockClimb()
+        .andThen(
+            run(() -> setLeftPower(leftClimberPID.calculate(getLeftClimberPosition())))
+                .until(leftClimberPID::atSetpoint));
   }
 
   public Command rightUp(double setpoint) {
     setRightClimberSetpoint(setpoint);
 
-    return run(() -> setRightPower(rightClimberPID.calculate(getRightClimberPosition())))
-        .until(rightClimberPID::atSetpoint);
+    return unlockClimb()
+        .andThen(
+            run(() -> setRightPower(rightClimberPID.calculate(getRightClimberPosition())))
+                .until(rightClimberPID::atSetpoint));
   }
 
   public Command bothUp(double setpoint) {
     setLeftClimberSetpoint(setpoint);
     setRightClimberSetpoint(setpoint);
 
-    return run(() -> {
-          setLeftPower(leftClimberPID.calculate(getLeftClimberPosition()));
-          setRightPower(rightClimberPID.calculate(getRightClimberPosition()));
-        })
-        .until(() -> leftClimberPID.atSetpoint() && rightClimberPID.atSetpoint())
-        .withInterruptBehavior(InterruptionBehavior.kCancelSelf);
+    return unlockClimb()
+        .andThen(
+            run(() -> {
+                  setLeftPower(leftClimberPID.calculate(getLeftClimberPosition()));
+                  setRightPower(rightClimberPID.calculate(getRightClimberPosition()));
+                })
+                .until(() -> leftClimberPID.atSetpoint() && rightClimberPID.atSetpoint()));
   }
 
   public Command zeroLeft() {
-    return run(() -> setLeftPower(kDownwardZeroingSpeed))
-        .until(leftLimitSwitch::get)
-        .finallyDo(
-            () -> {
-              setLeftPower(0);
-              resetLeftEncoder();
-            });
+    return unlockClimb()
+        .andThen(
+            run(() -> setLeftPower(kDownwardZeroingSpeed))
+                .until(leftLimitSwitch::get)
+                .finallyDo(
+                    () -> {
+                      setLeftPower(0);
+                      resetLeftEncoder();
+                    }));
   }
 
   public Command zeroRight() {
-    return run(() -> setRightPower(kDownwardZeroingSpeed))
-        .until(rightLimitSwitch::get)
-        .finallyDo(
-            () -> {
-              setRightPower(0);
-              resetRightEncoder();
-            });
+    return unlockClimb()
+        .andThen(
+            run(() -> setRightPower(kDownwardZeroingSpeed))
+                .until(rightLimitSwitch::get)
+                .finallyDo(
+                    () -> {
+                      setRightPower(0);
+                      resetRightEncoder();
+                    }));
   }
 
   public Command zeroBoth() {
-    return run(() -> {
-          if (!leftLimitSwitch.get()) setLeftPower(kDownwardZeroingSpeed);
-          if (!rightLimitSwitch.get()) setRightPower(kDownwardZeroingSpeed);
-        })
-        .until(() -> leftLimitSwitch.get() && rightLimitSwitch.get())
-        .finallyDo(
-            () -> {
-              setRightPower(0);
-              setLeftPower(0);
-              resetEncoders();
-            });
+    return unlockClimb()
+        .andThen(
+            run(() -> {
+                  if (!leftLimitSwitch.get()) setLeftPower(kDownwardZeroingSpeed);
+                  if (!rightLimitSwitch.get()) setRightPower(kDownwardZeroingSpeed);
+                })
+                .until(() -> leftLimitSwitch.get() && rightLimitSwitch.get())
+                .finallyDo(
+                    () -> {
+                      setRightPower(0);
+                      setLeftPower(0);
+                      resetEncoders();
+                    }));
   }
 }
