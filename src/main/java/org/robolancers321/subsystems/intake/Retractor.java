@@ -10,18 +10,17 @@ import com.revrobotics.CANSparkMax;
 import com.revrobotics.SparkAbsoluteEncoder.Type;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ArmFeedforward;
-import edu.wpi.first.math.controller.ProfiledPIDController;
+import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
-import edu.wpi.first.wpilibj2.command.ProfiledPIDSubsystem;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
-
+import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import java.util.function.DoubleSupplier;
 
-public class Retractor extends ProfiledPIDSubsystem {
+public class Retractor extends SubsystemBase {
   /*
    * Singleton
    */
@@ -60,6 +59,10 @@ public class Retractor extends ProfiledPIDSubsystem {
 
   private static final double kMaxVelocityDeg = 120.0;
   private static final double kMaxAccelerationDeg = 90.0;
+  private static TrapezoidProfile.Constraints kProfileConstraints =
+      new Constraints(kMaxVelocityDeg, kMaxAccelerationDeg);
+  private static final double kMaxOutput = 0.2;
+  private static final double kMinOutput = -0.2;
 
   private static final double kToleranceDeg = 2.0;
 
@@ -82,15 +85,20 @@ public class Retractor extends ProfiledPIDSubsystem {
   private final CANSparkMax motor;
   private final AbsoluteEncoder encoder;
   private ArmFeedforward feedforwardController;
+  private PIDController feedbackController;
+  private TrapezoidProfile motionProfile;
+  private TrapezoidProfile.State previousReference;
+  private TrapezoidProfile.State goalReference;
 
   private Retractor() {
-    super(
-        new ProfiledPIDController(
-            kP, kI, kD, new TrapezoidProfile.Constraints(kMaxVelocityDeg, kMaxAccelerationDeg)));
 
     this.motor = new CANSparkMax(kMotorPort, kBrushless);
     this.encoder = this.motor.getAbsoluteEncoder(Type.kDutyCycle);
     this.feedforwardController = new ArmFeedforward(kS, kG, kV);
+    this.feedbackController = new PIDController(kP, kI, kD);
+    this.motionProfile = new TrapezoidProfile(kProfileConstraints);
+    this.previousReference = new TrapezoidProfile.State(this.getPositionDeg(), 0);
+    this.goalReference = previousReference;
 
     this.configureMotor();
     this.configureEncoder();
@@ -123,16 +131,9 @@ public class Retractor extends ProfiledPIDSubsystem {
   }
 
   private void configureController() {
-    super.m_controller.enableContinuousInput(-180.0, 180.0);
-    super.m_controller.setTolerance(kToleranceDeg);
-    super.m_controller.setGoal(this.getPositionDeg());
-
-    this.m_enabled = true;
-  }
-
-  @Override
-  public double getMeasurement() {
-    return this.getPositionDeg();
+    feedbackController.enableContinuousInput(0.0, 360.0);
+    // feedbackController.setTolerance(kToleranceDeg);
+    feedbackController.setSetpoint(this.getPositionDeg()); // previousReference.position
   }
 
   public double getPositionDeg() {
@@ -149,25 +150,41 @@ public class Retractor extends ProfiledPIDSubsystem {
   }
 
   private boolean atGoal() {
-    return super.m_controller.atGoal();
+    return Math.abs(goalReference.position - previousReference.position) < kToleranceDeg;
   }
 
-  @Override
-  protected void useOutput(double output, TrapezoidProfile.State setpoint) {
+  private void setGoal(double position) {
+    goalReference = new TrapezoidProfile.State(position, 0);
+  }
+
+  private boolean atSetpoint() {
+    return this.feedbackController.atSetpoint();
+  }
+
+  private void setSetpoint(double position) {
+    this.feedbackController.setSetpoint(position);
+  }
+
+  private double getSetpoint() {
+    return this.feedbackController.getSetpoint();
+  }
+
+  protected void useOutput() {
     double feedforwardOutput =
         this.feedforwardController.calculate(
-            setpoint.position * Math.PI / 180.0, setpoint.velocity * Math.PI / 180.0);
+            getSetpoint() * Math.PI / 180.0, 0); // setpoint.velocity * Math.PI / 180.0
 
-    SmartDashboard.putNumber("retractor position setpoint mp (deg)", setpoint.position);
-    SmartDashboard.putNumber("retractor velocity setpoint mp (deg)", setpoint.velocity);
+    SmartDashboard.putNumber("retractor position setpoint mp (deg)", getPositionDeg());
+    SmartDashboard.putNumber("retractor velocity setpoint mp (deg)", getVelocityDeg());
 
     SmartDashboard.putNumber("retractor ff output", feedforwardOutput);
 
-    double feedbackOutput = super.m_controller.calculate(this.getPositionDeg());
+    double feedbackOutput = feedbackController.calculate(this.getPositionDeg());
 
     SmartDashboard.putNumber("retractor fb output", feedbackOutput);
 
-    double controllerOutput = feedforwardOutput + feedbackOutput;
+    double controllerOutput =
+        MathUtil.clamp(feedforwardOutput + feedbackOutput, kMinOutput, kMaxOutput);
 
     SmartDashboard.putNumber("retractor controller output", controllerOutput);
 
@@ -175,15 +192,18 @@ public class Retractor extends ProfiledPIDSubsystem {
   }
 
   private void doSendables() {
-    SmartDashboard.putBoolean("retractor at goal", this.atGoal());
+    SmartDashboard.putBoolean("retractor at setpoint", this.atSetpoint());
     SmartDashboard.putNumber("retractor position (deg)", this.getPositionDeg());
-    SmartDashboard.putNumber("retractor velocity (deg)", this.m_controller.getGoal().position);
-    SmartDashboard.putNumber("retractor mp goal (deg)", this.getVelocityDeg());
+    SmartDashboard.putNumber("retractor velocity (deg)", this.getVelocityDeg());
   }
 
   @Override
   public void periodic() {
-    super.periodic();
+    // motion profile version
+    // previousReference = motionProfile.calculate(0.02, previousReference, goalReference);
+    // useOutput(previousReference);
+
+    useOutput();
 
     this.doSendables();
   }
@@ -212,7 +232,7 @@ public class Retractor extends ProfiledPIDSubsystem {
     double tunedI = SmartDashboard.getNumber("retractor ki", kI);
     double tunedD = SmartDashboard.getNumber("retractor kd", kD);
 
-    super.m_controller.setPID(tunedP, tunedI, tunedD);
+    feedbackController.setPID(tunedP, tunedI, tunedD);
 
     double tunedS = SmartDashboard.getNumber("retractor ks", kS);
     double tunedV = SmartDashboard.getNumber("retractor kv", kV);
@@ -223,9 +243,9 @@ public class Retractor extends ProfiledPIDSubsystem {
     double tunedMaxVel = SmartDashboard.getNumber("retractor max vel (deg)", kMaxVelocityDeg);
     double tunedMaxAcc = SmartDashboard.getNumber("retractor max acc (deg)", kMaxAccelerationDeg);
 
-    this.m_controller.setConstraints(new Constraints(tunedMaxVel, tunedMaxAcc));
+    this.motionProfile = new TrapezoidProfile(new Constraints(tunedMaxVel, tunedMaxAcc));
 
-    this.setGoal(
+    this.setSetpoint(
         MathUtil.clamp(
             SmartDashboard.getNumber("retractor target position (deg)", this.getPositionDeg()),
             kMinAngle,
@@ -234,11 +254,15 @@ public class Retractor extends ProfiledPIDSubsystem {
 
   private Command moveToAngle(DoubleSupplier angleDegSupplier) {
     return new SequentialCommandGroup(
-      new InstantCommand(() -> this.setGoal(MathUtil.clamp(angleDegSupplier.getAsDouble(), kMinAngle, kMaxAngle))),
-      this.run(() ->
-            this.setGoal(MathUtil.clamp(angleDegSupplier.getAsDouble(), kMinAngle, kMaxAngle)))
-        .until(this::atGoal)
-    );
+        new InstantCommand(
+            () ->
+                this.setSetpoint(
+                    MathUtil.clamp(angleDegSupplier.getAsDouble(), kMinAngle, kMaxAngle))),
+        this.run(
+                () ->
+                    this.setSetpoint(
+                        MathUtil.clamp(angleDegSupplier.getAsDouble(), kMinAngle, kMaxAngle)))
+            .until(this::atSetpoint));
   }
 
   private Command moveToAngle(double angleDeg) {

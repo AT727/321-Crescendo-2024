@@ -1,29 +1,17 @@
 /* (C) Robolancers 2024 */
 package org.robolancers321;
 
-import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.simulation.AddressableLEDSim;
-
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import org.robolancers321.commands.Mate;
 import org.robolancers321.commands.ScoreSpeakerFixed;
 import org.robolancers321.subsystems.LED;
-import org.robolancers321.subsystems.LED.Section;
 import org.robolancers321.subsystems.drivetrain.Drivetrain;
 import org.robolancers321.subsystems.intake.Intake;
 import org.robolancers321.subsystems.launcher.Launcher;
-
-import edu.wpi.first.wpilibj.XboxController;
-import edu.wpi.first.wpilibj.util.Color;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.InstantCommand;
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-import edu.wpi.first.wpilibj2.command.button.Trigger;
-
-import java.util.function.BooleanSupplier;
-
-
 
 public class RobotContainer {
   Drivetrain drivetrain;
@@ -54,7 +42,7 @@ public class RobotContainer {
 
   private void configureBindings() {
     // TODO: register led bindings here
- 
+
     // this.drivetrain.setDefaultCommand(this.drivetrain.tuneModules());
 
     // this.intake.retractor.setDefaultCommand(this.intake.retractor.tuneControllers());
@@ -76,11 +64,14 @@ public class RobotContainer {
     // new Trigger(this.manipulatorController::getXButton).onTrue(this.launcher.scoreAmp());
     // new Trigger(this.manipulatorController::getYButton).onTrue(this.launcher.scoreSpeaker());
     new Trigger(this.manipulatorController::getYButton).onTrue(new ScoreSpeakerFixed());
-    new Trigger(this.manipulatorController::getXButton).onTrue(new Mate().andThen(this.launcher.scoreAmp()));
+    new Trigger(this.manipulatorController::getXButton)
+        .onTrue(new Mate().andThen(this.launcher.scoreAmp()));
 
     this.drivetrain.setDefaultCommand(this.drivetrain.teleopDrive(driverController, true));
 
-    new Trigger(() -> this.driverController.getLeftBumper() && this.driverController.getRightBumper()).onTrue(this.drivetrain.zeroYaw());
+    new Trigger(
+            () -> this.driverController.getLeftBumper() && this.driverController.getRightBumper())
+        .onTrue(this.drivetrain.zeroYaw());
 
     // new Trigger(() -> this.driverController.getRightTriggerAxis() > 0.8)
     //     .onTrue(this.intake.retractor.moveToIntake());

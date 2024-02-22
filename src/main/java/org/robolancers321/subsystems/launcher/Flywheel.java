@@ -138,10 +138,11 @@ public class Flywheel extends SubsystemBase {
   }
 
   public Command yeetNoteAmp() {
-    return run(() -> {
-      this.goalRPM = FlywheelSetpoint.kAmp.rpm;
-      this.useController();
-    });
+    return run(
+        () -> {
+          this.goalRPM = FlywheelSetpoint.kAmp.rpm;
+          this.useController();
+        });
   }
 
   public Command yeetNoteSpeaker(DoubleSupplier rpmSupplier) {
@@ -153,10 +154,11 @@ public class Flywheel extends SubsystemBase {
   }
 
   public Command yeetNoteSpeakerFixed() {
-    return run(() -> {
-      this.goalRPM = FlywheelSetpoint.kSpeaker.rpm;
-      this.useController();
-    });
+    return run(
+        () -> {
+          this.goalRPM = FlywheelSetpoint.kSpeaker.rpm;
+          this.useController();
+        });
   }
 
   public Command tuneController() {

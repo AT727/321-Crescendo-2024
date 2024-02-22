@@ -142,8 +142,8 @@ public class Indexer extends SubsystemBase {
     return new ParallelRaceGroup(
         run(() -> this.setRPM(kOuttakeRPM)),
         new SequentialCommandGroup(
-                new WaitUntilCommand(beamBreakStateSupplier),
-                new WaitUntilCommand(() -> !beamBreakStateSupplier.getAsBoolean())));
+            new WaitUntilCommand(beamBreakStateSupplier),
+            new WaitUntilCommand(() -> !beamBreakStateSupplier.getAsBoolean())));
   }
 
   public Command tuneController() {
