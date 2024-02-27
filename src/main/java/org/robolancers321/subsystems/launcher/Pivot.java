@@ -5,6 +5,7 @@ import static com.revrobotics.CANSparkLowLevel.MotorType.kBrushless;
 
 import com.revrobotics.*;
 import com.revrobotics.CANSparkBase.SoftLimitDirection;
+import com.revrobotics.CANSparkLowLevel.PeriodicFrame;
 import com.revrobotics.SparkAbsoluteEncoder.Type;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.ArmFeedforward;
@@ -49,20 +50,20 @@ public class Pivot extends SubsystemBase {
   private static final float kMinAngle = 0.0f;
   private static final float kMaxAngle = 90.0f;
 
-  private static final double kP = 0.0;
+  private static final double kP = 0.0; //0.015 PID 0.02 MP
   private static final double kI = 0.0;
   private static final double kD = 0.0;
 
   private static final double kS = 0.0;
   private static final double kG = 0.0;
-  private static final double kV = 0.0;
+  private static final double kV = 0.0; //0.35
 
-  private static final double kMaxVelocityDeg = 240;
-  private static final double kMaxAccelerationDeg = 360;
+  private static final double kMaxVelocityDeg = 40;
+  private static final double kMaxAccelerationDeg = 40;
   private static TrapezoidProfile.Constraints kProfileConstraints =
       new Constraints(kMaxVelocityDeg, kMaxAccelerationDeg);
-  private static final double kMaxOutput = 0.2;
-  private static final double kMinOutput = -0.2;
+  private static final double kMaxOutput = 1;
+  private static final double kMinOutput = -1;
 
   private static final double kToleranceDeg = 2.5;
 
@@ -119,6 +120,9 @@ public class Pivot extends SubsystemBase {
 
     this.motor.enableSoftLimit(SoftLimitDirection.kForward, false);
     this.motor.enableSoftLimit(SoftLimitDirection.kReverse, false);
+
+    // this.motor.setControlFramePeriodMs(20);
+    this.motor.setPeriodicFramePeriod(PeriodicFrame.kStatus5, 20);
   }
 
   private void configureEncoder() {
@@ -133,7 +137,7 @@ public class Pivot extends SubsystemBase {
   private void configureController() {
     feedbackController.enableContinuousInput(0.0, 360.0);
     // feedbackController.setTolerance(kToleranceDeg);
-    feedbackController.setSetpoint(this.getPositionDeg()); // previousReference.position
+    feedbackController.setSetpoint(previousReference.position); // previousReference.position
   }
 
   public double getPositionDeg() {
@@ -173,17 +177,17 @@ public class Pivot extends SubsystemBase {
     return this.feedbackController.getSetpoint();
   }
 
-  protected void useOutput() {
+  protected void useOutput(TrapezoidProfile.State setpoint) {
     double feedforwardOutput =
         this.feedforwardController.calculate(
-            this.getSetpoint() * Math.PI / 180.0, 0); // setpoint.velocity * Math.PI / 180.0
+            Math.toRadians(setpoint.position), Math.toRadians(setpoint.velocity)); // setpoint.velocity * Math.PI / 180.0
 
-    // SmartDashboard.putNumber("pivot position setpoint mp (deg)", setpoint.position);
-    // SmartDashboard.putNumber("pivot velocity setpoint mp (deg)", setpoint.velocity);
+    SmartDashboard.putNumber("pivot position setpoint mp (deg)", setpoint.position);
+    SmartDashboard.putNumber("pivot velocity setpoint mp (deg)", setpoint.velocity);
 
     SmartDashboard.putNumber("pivot ff output", feedforwardOutput);
 
-    double feedbackOutput = feedbackController.calculate(this.getPositionDeg());
+    double feedbackOutput = feedbackController.calculate(getPositionDeg(), setpoint.position);
 
     SmartDashboard.putNumber("pivot fb output", feedbackOutput);
 
@@ -197,18 +201,20 @@ public class Pivot extends SubsystemBase {
 
   public void doSendables() {
     SmartDashboard.putBoolean("pivot at setpoint", this.atSetpoint());
-    SmartDashboard.putNumber("pivot position (deg)", this.getPositionDeg());
-    SmartDashboard.putNumber("pivot velocity (deg)", this.getVelocityDeg());
+    SmartDashboard.putNumber("pivot current position (deg)", this.getPositionDeg());
+    SmartDashboard.putNumber("pivot position previousRef pos ", this.previousReference.position);
+    SmartDashboard.putNumber("pivot velocity previousRef vel ", this.previousReference.velocity);
+    SmartDashboard.putNumber("pivot current velocity (deg)", this.getVelocityDeg());
   }
 
   @Override
   public void periodic() {
 
     // motion profile version
-    // previousReference = motionProfile.calculate(0.02, previousReference, goalReference);
-    // useOutput(previousReference);
+    previousReference = motionProfile.calculate(0.02, previousReference, goalReference);
+    useOutput(previousReference);
 
-    useOutput();
+    // useOutput();
 
     this.doSendables();
   }
@@ -249,9 +255,9 @@ public class Pivot extends SubsystemBase {
 
     this.motionProfile = new TrapezoidProfile(new Constraints(tunedMaxVel, tunedMaxAcc));
 
-    this.setSetpoint(
+    this.setGoal(
         MathUtil.clamp(
-            SmartDashboard.getNumber("pivot target position (deg)", this.getPositionDeg()),
+            SmartDashboard.getNumber("pivot target position (deg)", goalReference.position),
             kMinAngle,
             kMaxAngle));
   }

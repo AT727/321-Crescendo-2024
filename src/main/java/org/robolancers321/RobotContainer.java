@@ -52,6 +52,8 @@ public class RobotContainer {
     // this.launcher.indexer.setDefaultCommand(this.launcher.indexer.tuneController());
     // this.launcher.flywheel.setDefaultCommand(this.launcher.flywheel.tuneController());
 
+    this.launcher.pivot.setDefaultCommand(this.launcher.pivot.tuneControllers());
+    /* 
     this.intake.sucker.setDefaultCommand(this.intake.sucker.off());
     this.launcher.indexer.setDefaultCommand(this.launcher.indexer.off());
     this.launcher.flywheel.setDefaultCommand(this.launcher.flywheel.off());
@@ -72,6 +74,8 @@ public class RobotContainer {
     new Trigger(
             () -> this.driverController.getLeftBumper() && this.driverController.getRightBumper())
         .onTrue(this.drivetrain.zeroYaw());
+
+        */
 
     // new Trigger(() -> this.driverController.getRightTriggerAxis() > 0.8)
     //     .onTrue(this.intake.retractor.moveToIntake());
