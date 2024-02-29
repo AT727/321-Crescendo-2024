@@ -50,16 +50,16 @@ public class Pivot extends SubsystemBase {
   private static final float kMinAngle = 0.0f;
   private static final float kMaxAngle = 90.0f;
 
-  private static final double kP = 0.0; //0.015 PID 0.02 MP
+  private static final double kP = 0.03; //0.015 PID 0.02 MP
   private static final double kI = 0.0;
-  private static final double kD = 0.0;
+  private static final double kD = 0.35;
 
   private static final double kS = 0.0;
   private static final double kG = 0.0;
-  private static final double kV = 0.0; //0.35
+  private static final double kV = 0.35; //0.35
 
-  private static final double kMaxVelocityDeg = 40;
-  private static final double kMaxAccelerationDeg = 40;
+  private static final double kMaxVelocityDeg = 500;
+  private static final double kMaxAccelerationDeg = 2000;
   private static TrapezoidProfile.Constraints kProfileConstraints =
       new Constraints(kMaxVelocityDeg, kMaxAccelerationDeg);
   private static final double kMaxOutput = 1;
