@@ -43,6 +43,7 @@ import org.robolancers321.subsystems.launcher.Indexer;
 import org.robolancers321.subsystems.launcher.Pivot;
 
 import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.auto.NamedCommands;
 import com.pathplanner.lib.path.PathPlannerPath;
 
 public class RobotContainer {
@@ -72,6 +73,8 @@ public class RobotContainer {
     this.driverController = new XboxController(0);
     this.manipulatorController = new XboxController(1);
 
+    this.configureNamedCommands();
+
     this.autoChooser = new SendableChooser<Command>();
 
     this.led = new LED();
@@ -87,12 +90,6 @@ public class RobotContainer {
   private void configureLEDs() {
     // default, meteor red
     LED.registerSignal(1, () -> true, LED.meteorRain(0.02, LED.kDefaultMeteorColors));
-
-    // green water
-    // LED.registerSignal(1, () -> true, LED.wave(Section.FULL, new Color(109, 199, 201), new Color(49,164,176)));
-
-    //blue water
-    // LED.registerSignal(1, () -> true, LED.wave(Section.FULL, new Color(85, 196, 232), new Color(3,147,202)));
 
     // sees note, blink orange
     LED.registerSignal(
@@ -237,6 +234,11 @@ public class RobotContainer {
     this.autoChooser.addOption("3NB Close", new Auto3NBClose());
 
     SmartDashboard.putData(autoChooser);
+  }
+
+
+  public void configureNamedCommands(){
+    NamedCommands.registerCommand("IntakeNote", new IntakeNote());
   }
 
   public Command getAutonomousCommand() {
