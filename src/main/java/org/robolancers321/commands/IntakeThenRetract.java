@@ -7,11 +7,11 @@ import edu.wpi.first.wpilibj2.command.WaitUntilCommand;
 import org.robolancers321.subsystems.intake.Retractor;
 import org.robolancers321.subsystems.intake.Sucker;
 
-public class IntakeNote extends SequentialCommandGroup {
+public class IntakeThenRetract extends SequentialCommandGroup {
   private Retractor retractor;
   private Sucker sucker;
 
-  public IntakeNote() {
+  public IntakeThenRetract() {
     this.retractor = Retractor.getInstance();
     this.sucker = Sucker.getInstance();
 

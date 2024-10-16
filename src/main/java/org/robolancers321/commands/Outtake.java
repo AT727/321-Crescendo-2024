@@ -1,19 +1,18 @@
 /* (C) Robolancers 2024 */
 package org.robolancers321.commands;
 
-import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import org.robolancers321.subsystems.intake.Retractor;
 import org.robolancers321.subsystems.intake.Sucker;
 
-public class IntakeNoteManual extends SequentialCommandGroup {
+public class Outtake extends SequentialCommandGroup {
   private Retractor retractor;
   private Sucker sucker;
 
-  public IntakeNoteManual() {
+  public Outtake() {
     this.retractor = Retractor.getInstance();
     this.sucker = Sucker.getInstance();
 
-    this.addCommands(new ParallelCommandGroup(this.retractor.moveToIntake(), this.sucker.in()));
+    this.addCommands(this.retractor.moveToOuttake(), this.sucker.out());
   }
 }

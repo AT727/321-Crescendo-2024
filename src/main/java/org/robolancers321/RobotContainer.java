@@ -24,26 +24,13 @@ import org.robolancers321.Constants.FlywheelConstants;
 import org.robolancers321.Constants.PivotConstants;
 import org.robolancers321.Constants.RetractorConstants;
 import org.robolancers321.Constants.RetractorConstants.RetractorSetpoint;
-import org.robolancers321.commands.AutoCommands.PathAndRetract;
 import org.robolancers321.commands.AutoPickupNote;
 import org.robolancers321.commands.EmergencyCancel;
 import org.robolancers321.commands.FeederShot;
-import org.robolancers321.commands.IntakeNote;
-import org.robolancers321.commands.IntakeNoteManual;
+import org.robolancers321.commands.IntakeThenRetract;
+import org.robolancers321.commands.Intake;
 import org.robolancers321.commands.Mate;
-import org.robolancers321.commands.OuttakeNote;
-import org.robolancers321.commands.PPAutos.BotDisrupt;
-import org.robolancers321.commands.PPAutos.BotTaxi;
-import org.robolancers321.commands.PPAutos.FourBottom;
-import org.robolancers321.commands.PPAutos.FourMid;
-import org.robolancers321.commands.PPAutos.FourTop;
-import org.robolancers321.commands.PPAutos.FourTopAlt;
-import org.robolancers321.commands.PPAutos.ScoreAndSit;
-import org.robolancers321.commands.PPAutos.ThreeBotCenter;
-import org.robolancers321.commands.PPAutos.ThreeBotCenterAlt;
-import org.robolancers321.commands.PPAutos.ThreeTopCenter;
-import org.robolancers321.commands.PPAutos.TopDisrupt;
-import org.robolancers321.commands.PPAutos.TopTaxi;
+import org.robolancers321.commands.Outtake;
 import org.robolancers321.commands.ScoreAmp;
 import org.robolancers321.commands.ScoreAmpIntake;
 import org.robolancers321.commands.ScoreSpeakerFixedTeleop;
@@ -230,14 +217,14 @@ public class RobotContainer {
     new Trigger(this.driverController::getLeftBumper).whileFalse(this.sucker.off());
 
     new Trigger(() -> this.driverController.getRightTriggerAxis() > 0.8)
-        .whileTrue(new IntakeNoteManual().unless(() -> climbing));
+        .whileTrue(new Intake().unless(() -> climbing));
 
     // for auto handoff, putting it on a button instead is safer so fender shot is still viable
     // new Trigger(() -> this.driverController.getRightTriggerAxis() > 0.8)
     //     .onFalse((new Mate().andThen(new Shift())).onlyIf(this.sucker::noteDetected));
 
     new Trigger(() -> this.driverController.getLeftTriggerAxis() > 0.8)
-        .whileTrue(new OuttakeNote().unless(() -> climbing));
+        .whileTrue(new Outtake().unless(() -> climbing));
 
     new Trigger(this.driverController::getAButton)
         .whileTrue(this.drivetrain.alignToAmp().unless(() -> climbing));
@@ -416,65 +403,11 @@ public class RobotContainer {
   }
 
   private void configureAuto() {
-    /*
-    Sweep - pickup front 3 notes with curves
-    Sweep straight - pickup front 3 notes with straight line
-    Close - pickup front note first
-    Skip - pickup center note first then go back for front note
-     */
-
-    this.autoChooser.addOption(
-        "Do Nothing",
-        new InstantCommand(
-            () -> this.drivetrain.setYaw(this.drivetrain.getPose().getRotation().getDegrees())));
-    this.autoChooser.setDefaultOption("Score And Sit", new ScoreAndSit());
-
-    this.autoChooser.addOption(
-        "TESTING DONT USE",
-        new InstantCommand(
-                () -> this.drivetrain.setYaw(this.drivetrain.getPose().getRotation().getDegrees()))
-            .andThen(new PathAndRetract(PathPlannerPath.fromPathFile("Bruh"))));
-
-    // this.autoChooser.addOption("4NT Sweep", new Auto4NTSweep());
-    // this.autoChooser.addOption("4NT Close", new Auto4NTClose());
-    // this.autoChooser.addOption("3NT Close", new Auto3NTClose());
-
-    // this.autoChooser.addOption("4NM Sweep", new Auto4NMSweep());
-    // this.autoChooser.addOption("3NM Close", new Auto3NMClose());
-    // this.autoChooser.addOption("4NM Sweep Fender", new Auto4NMSweepFender());
-    // this.autoChooser.addOption("4NM Sweep Fender Straight", new Auto4NMSweepFenderStraight());
-    // this.autoChooser.addOption(
-    //     "4NM Sweep Fender Straight Auto Pickup", new Auto4NMSweepFenderStraightAutoPickup());
-
-    // this.autoChooser.addOption("4NB Sweep", new Auto4NBSweep());
-    // this.autoChooser.addOption("4NB Skip", new Auto4NBSkip());
-    // this.autoChooser.addOption("3NB Sweep Straight", new Auto4NBSweepStraight());
-    // this.autoChooser.addOption("3NB Close", new Auto3NBClose());
-
-    // pathplanner
-    this.autoChooser.addOption("4 piece mid", new FourMid());
-    this.autoChooser.addOption("score and taxi top", new TopTaxi());
-    this.autoChooser.addOption("score and taxi bottom", new BotTaxi());
-
-    this.autoChooser.addOption("4 piece top", new FourTop());
-    this.autoChooser.addOption("4 piece top second note", new FourTopAlt());
-
-    this.autoChooser.addOption("3 piece bottom", new FourBottom());
-    this.autoChooser.addOption("3 piece top center only", new ThreeTopCenter());
-
-    this.autoChooser.addOption("3 piece bottom center only", new ThreeBotCenter());
-    this.autoChooser.addOption("3 piece bottom center only second note", new ThreeBotCenterAlt());
-
-    this.autoChooser.addOption("top chaos", new TopDisrupt());
-    this.autoChooser.addOption("bottom chaos", new BotDisrupt());
-
-    // this.autoChooser.addOption("2 piece mid", new Close3M());
-
-    SmartDashboard.putData(autoChooser);
+    
   }
 
   private void configureNamedCommands() {
-    NamedCommands.registerCommand("IntakeNote", new IntakeNote());
+    NamedCommands.registerCommand("IntakeNote", new IntakeThenRetract());
   }
 
   private Command toggleClimbingMode() {
